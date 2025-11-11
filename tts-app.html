@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemini TTS</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // 2. Configure Tailwind
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-primary': '#4f46e5',
+              'brand-secondary': '#7c3aed',
+              'base-100': '#0f172a',
+              'base-200': '#1e293b',
+              'base-300': '#334155',
+              'text-primary': '#f8fafc',
+              'text-secondary': '#94a3b8',
+            },
+          },
+        },
+      };
+    </script>
+    <!-- 3. Load React & Babel -->
+    <!-- Babel is needed to transpile our JSX (React's HTML-like syntax) in the browser -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-base-100">
+    <div id="root"></div>
+
+    <!-- 4. Load Google AI Library (via import map) -->
+    <!-- This MUST come before our application script -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai"
+        }
+      }
+    </script>
+
+    <!-- 
+      5. Application Code 
+      All of your .ts and .tsx files have been combined and transpiled into this one script.
+      We use type="module-shim" and "text/babel" to make JSX and modules work.
+    -->
+    <script type="text/babel" data-type="module">
+      // --- FIX: Import GoogleGenAI (which is exported) instead of GoogleGenerativeAI ---
+      import { GoogleGenAI, Modality } from "@google/genai";
+
+      const { useState, useCallback, useEffect, useMemo } = React;
+
+      // --- START: src/types.ts ---
+      // We use the object-based definition for modern JS
+      const VoiceName = {
+        Kore: 'Kore',
+        Puck: 'Puck',
+        Charon: 'Charon',
+        Fenrir: 'Fenrir',
+        Zephyr: 'Zephyr'
+      };
+      // --- END: src/types.ts ---
+
+      // --- START: src/constants.ts ---
+      const AVAILABLE_VOICES = [
+        { value: VoiceName.Kore,   label: 'Kore (Female)' },
+        { value: VoiceName.Puck,   label: 'Puck (Male)' },
+        { value: VoiceName.Charon, label: 'Charon (Male)' },
+        { value: VoiceName.Fenrir, label: 'Fenrir (Male)' },
+        { value: VoiceName.Zephyr, label: 'Zephyr (Female)' }
+      ];
+      const AUDIO_SAMPLE_RATE = 24000;
+      const AUDIO_CHANNELS = 1;
+      const MAX_TEXT_LENGTH = 2000;
+      // --- END: src/constants.ts ---
+
+      // --- START: src/utils.ts ---
+      function decode(base64) {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+      }
+
+      function encode(bytes) {
+        let binary = '';
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+
+      function createWavBlob(pcmData, sampleRate, numChannels) {
+          const dataInt16 = new Int16Array(pcmData.buffer);
+          const dataSize = dataInt16.length * 2;
+          const buffer = new ArrayBuffer(44 + dataSize);
+          const view = new DataView(buffer);
+
+          function writeString(view, offset, string) {
+              for (let i = 0; i < string.length; i++) {
+                  view.setUint8(offset + i, string.charCodeAt(i));
+              }
+          }
+
+          writeString(view, 0, 'RIFF');
+          view.setUint32(4, 36 + dataSize, true);
+          writeString(view, 8, 'WAVE');
+          writeString(view, 12, 'fmt ');
+          view.setUint32(16, 16, true);
+          view.setUint16(20, 1, true);
+          view.setUint16(22, numChannels, true);
+          view.setUint32(24, sampleRate, true);
+          view.setUint32(28, sampleRate * numChannels * 2, true);
+          view.setUint16(32, numChannels * 2, true);
+          view.setUint16(34, 16, true);
+          writeString(view, 36, 'data');
+          view.setUint32(40, dataSize, true);
+
+          for (let i = 0; i < dataInt16.length; i++) {
+              view.setInt16(44 + i * 2, dataInt16[i], true);
+          }
+
+          return new Blob([view], { type: 'audio/wav' });
+      }
+
+      function splitText(text) {
+          const maxLength = MAX_TEXT_LENGTH;
+          if (text.length <= maxLength) return [text];
+          
+          const chunks = [];
+          let currentPos = 0;
+          
+          while (currentPos < text.length) {
+              let endPos = Math.min(currentPos + maxLength, text.length);
+              
+              if (endPos < text.length) {
+                  const chunk = text.substring(currentPos, endPos);
+                  let splitPos = -1;
+
+                  for (const sep of ['.', '!', '?']) {
+                      splitPos = Math.max(splitPos, chunk.lastIndexOf(sep));
+                  }
+                  
+                  if (splitPos === -1) {
+                      splitPos = chunk.lastIndexOf(' ');
+                  }
+                  
+                  if (splitPos !== -1 && splitPos > 0) {
+                      endPos = currentPos + splitPos + 1;
+                  }
+              }
+              
+              chunks.push(text.substring(currentPos, endPos).trim());
+              currentPos = endPos;
+          }
+          
+          return chunks.filter(Boolean);
+      }
+      // --- END: src/utils.ts ---
+
+      // --- START: src/services/geminiService.ts ---
+      const generateSpeech = async (text, voice, apiKey) => {
+          if (!apiKey) {
+              throw new Error("API_KEY not provided. Please enter your API Key.");
+          }
+          
+          // --- FIX: Use GoogleGenAI (which is exported) ---
+          const ai = new GoogleGenAI(apiKey);
+
+          // --- FIX: Use the ai.models.generateContent structure ---
+          const response = await ai.models.generateContent({
+              model: "gemini-2.5-flash-preview-tts",
+              contents: [{ parts: [{ text }] }],
+              generationConfig: {
+                  responseModalities: [Modality.AUDIO],
+                  speechConfig: {
+                      voiceConfig: {
+                          prebuiltVoiceConfig: { voiceName: voice },
+                      },
+                  },
+              },
+          });
+
+          // --- FIX: Parse response directly from response.candidates ---
+          const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+          if (!base64Audio) {
+              throw new Error("Failed to generate audio. The response did not contain audio data.");
+          }
+          
+          return base64Audio;
+      };
+      // --- END: src/services/geminiService.ts ---
+
+      // --- START: src/components/Button.tsx ---
+      const Button = ({
+        children,
+        isLoading = false,
+        disabled = false,
+        className,
+        ...props
+      }) => {
+        return (
+          <button
+            className={`
+              w-full flex items-center justify-center p-4 rounded-lg font-semibold text-lg
+              transition-all duration-200
+              ${
+                (disabled || isLoading)
+                  ? 'bg-base-300 text-text-secondary cursor-not-allowed'
+                  : 'bg-brand-primary hover:bg-brand-secondary text-white shadow-lg'
+              }
+              ${className}
+            `}
+            disabled={disabled || isLoading}
+            {...props}
+          >
+            {isLoading ? (
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            ) : (
+              children
+            )}
+          </button>
+        );
+      };
+      // --- END: src/components/Button.tsx ---
+
+      // --- START: src/components/Select.tsx ---
+      const Select = ({
+        label,
+        id,
+        options,
+        value,
+        onChange,
+        disabled = false,
+        ...props
+      }) => {
+        return (
+          <div>
+            <label htmlFor={id} className="block text-sm font-medium text-text-secondary mb-2">
+              {label}
+            </label>
+            <select
+              id={id}
+              value={value}
+              onChange={onChange}
+              disabled={disabled}
+              className="
+                w-full p-3 bg-base-300 border border-base-300 rounded-lg
+                text-text-primary placeholder-text-secondary
+                focus:outline-none focus:ring-2 focus:ring-brand-primary
+                transition-all duration-200
+                disabled:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed
+              "
+              {...props}
+            >
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      };
+      // --- END: src/components/Select.tsx ---
+
+      // --- START: src/components/SoundWaveIcon.tsx ---
+      const SoundWaveIcon = (props) => {
+        return (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            {...props}
+          >
+            <path d="M2 10v4" />
+            <path d="M6 7v10" />
+            <path d="M10 4v16" />
+            <path d="M14 7v10" />
+            <path d="M18 10v4" />
+            <path d="M22 10v4" />
+          </svg>
+        );
+      };
+      // --- END: src/components/SoundWaveIcon.tsx ---
+
+      // --- START: src/components/AudioPlayer.tsx ---
+      const AudioPlayer = ({ audioUrl, currentText }) => {
+        if (!audioUrl) return null;
+
+        const handleDownload = () => {
+          if (!audioUrl) return;
+          const link = document.createElement('a');
+          link.href = audioUrl;
+          link.download = 'gemini-tts-audio.wav'; 
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        return (
+          <div className="space-y-4 my-6">
+            <div>
+              <p className="text-sm text-text-secondary mb-2">Now Playing:</p>
+              <p className="text-text-primary bg-base-300 p-3 rounded-md max-h-24 overflow-y-auto">
+                {currentText}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <audio controls autoPlay src={audioUrl} className="w-full" style={{ colorScheme: 'dark' }}>
+                Your browser does not support the audio element.
+              </audio>
+              <button
+                onClick={handleDownload}
+                aria-label="Download audio"
+                className="flex-shrink-0 p-3 rounded-md bg-base-300 hover:bg-brand-primary text-text-secondary hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-200 focus:ring-brand-primary transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        );
+      };
+      // --- END: src/components/AudioPlayer.tsx ---
+
+      // --- START: src/components/History.tsx ---
+      const History = ({ history, onPlay, availableVoices }) => {
+        const voiceMap = useMemo(() => {
+          return new Map(availableVoices.map(v => [v.value, v.label]));
+        }, [availableVoices]);
+
+        if (history.length === 0) return null;
+
+        return (
+          <div className="mt-8 border-t border-base-300 pt-6">
+            <h2 className="text-xl font-semibold text-text-primary mb-4">History</h2>
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+              {history.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
+                  <div className="flex-1 mr-4 overflow-hidden">
+                    <p className="text-text-primary truncate">{item.text}</p>
+                    <p className="text-xs text-text-secondary mt-1">{voiceMap.get(item.voice) || item.voice}</p>
+                  </div>
+                  <button
+                    onClick={() => onPlay(item)}
+                    aria-label={`Play audio for: ${item.text}`}
+                    className="flex-shrink-0 p-2 rounded-full bg-brand-primary hover:bg-brand-secondary text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-300 focus:ring-brand-secondary transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+      // --- END: src/components/History.tsx ---
+
+      // --- START: src/App.tsx ---
+      const currentAudioUrl = {
+          url: '',
+          revoke: () => {
+              if (currentAudioUrl.url) {
+                  URL.revokeObjectURL(currentAudioUrl.url);
+                  currentAudioUrl.url = '';
+              }
+          }
+      }
+
+      function App() {
+        const [text, setText] = useState('Hello! I am a friendly AI, ready to bring your words to life.');
+        const [selectedVoice, setSelectedVoice] = useState(VoiceName.Kore);
+        const [apiKey, setApiKey] = useState('');
+        const [isLoading, setIsLoading] = useState(false);
+        const [error, setError] = useState(null);
+        const [warning, setWarning] = useState(null);
+        const [history, setHistory] = useState([]);
+        const [currentAudio, setCurrentAudio] = useState(null);
+
+        const handlePlayAudio = useCallback((item) => {
+            const audioData = decode(item.base64Audio);
+            const wavBlob = createWavBlob(audioData, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS);
+
+            currentAudioUrl.revoke();
+            const audioUrl = URL.createObjectURL(wavBlob);
+            currentAudioUrl.url = audioUrl;
+
+            setCurrentAudio({ url: audioUrl, text: item.text });
+        }, []);
+
+        const handleGenerateSpeech = async () => {
+          if (!apiKey.trim()) {
+            setError('Please enter your Google AI Studio API Key to use this app.');
+            return;
+          }
+          if (!text.trim()) {
+            setError('Please enter some text to generate speech.');
+            return;
+          }
+          setIsLoading(true);
+          setError(null);
+          setWarning(null);
+
+          if (text.length > MAX_TEXT_LENGTH) {
+              setWarning(`Text is long and will be split into parts. This may take a moment.`);
+          }
+
+          try {
+            const chunks = splitText(text);
+            
+            const base64AudioChunks = await Promise.all(
+              chunks.map((chunk) => generateSpeech(chunk, selectedVoice, apiKey))
+            );
+            
+            const decodedChunks = base64AudioChunks.map((b64) => decode(b64));
+
+            const totalLength = decodedChunks.reduce(
+              (sum, chunk) => sum + chunk.length, 0
+            );
+            
+            const concatenatedPcm = new Uint8Array(totalLength);
+            
+            let offset = 0;
+            for (const chunk of decodedChunks) {
+              concatenatedPcm.set(chunk, offset);
+              offset += chunk.length;
+            }
+            
+            const base64Audio = encode(concatenatedPcm);
+
+            const newItem = {
+              id: crypto.randomUUID(),
+              text,
+              voice: selectedVoice,
+              base64Audio,
+            };
+
+            setHistory(prev => [newItem, ...prev]);
+            handlePlayAudio(newItem);
+
+          } catch (err) {
+            setError(err.message || 'An unexpected error occurred.');
+            console.error(err);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        
+        useEffect(() => {
+          return () => {
+            currentAudioUrl.revoke();
+          }
+        }, []);
+
+        return (
+          <div className="min-h-screen bg-base-100 text-text-primary flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-2xl mx-auto">
+              <header className="text-center mb-8">
+                  <div className="flex justify-center items-center gap-4 mb-4">
+                      <SoundWaveIcon className="w-12 h-12 text-brand-primary"/>
+                      <h1 className="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-brand-primary to-brand-secondary text-transparent bg-clip-text">
+                          Gemini TTS
+                      </h1>
+                  </div>
+                <p className="text-lg text-text-secondary">
+                  Transform your text into lifelike speech with the power of Gemini.
+                </p>
+              </header>
+
+              <main className="bg-base-200 p-6 md:p-8 rounded-2xl shadow-2xl">
+                <div className="space-y-6">
+                  
+                  <div>
+                    <label htmlFor="api-key" className="block text-sm font-medium text-text-secondary mb-2">
+                      Google AI Studio API Key
+                    </label>
+                    <input
+                      type="password"
+                      id="api-key"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Enter your API key here"
+                      className="
+                        w-full p-3 bg-base-300 border border-base-300 rounded-lg 
+                        text-text-primary placeholder-text-secondary
+                        focus:outline-none focus:ring-2 focus:ring-brand-primary
+                        transition-all duration-200
+                      "
+                      disabled={isLoading}
+                    />
+                    <p className="text-xs text-text-secondary mt-2">
+                      Your key is stored only in your browser. Get one from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline text-brand-primary">AI Studio</a>.
+                    </p>
+                  </div>
+
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Enter text here..."
+                    className="
+                      w-full h-40 p-4 bg-base-300 border border-base-300 rounded-lg 
+                      text-text-primary placeholder-text-secondary resize-none
+                      focus:outline-none focus:ring-2 focus:ring-brand-primary
+                      transition-all duration-200
+                    "
+                    disabled={isLoading}
+                  />
+                  
+                  <Select
+                    label="Choose a Voice"
+                    id="voice-select"
+                    options={AVAILABLE_VOICES}
+                    value={selectedVoice}
+                    onChange={(e) => setSelectedVoice(e.target.value)}
+                    disabled={isLoading}
+                  />
+                  
+                  {warning && (
+                    <div className="bg-yellow-900/50 text-yellow-300 p-3 rounded-lg text-sm">
+                      <strong>Notice:</strong> {warning}
+                    </div>
+                  )}
+                
+                  <AudioPlayer audioUrl={currentAudio?.url ?? null} currentText={currentAudio?.text ?? null} />
+                  
+                  {error && (
+                    <div className="bg-red-900/50 text-red-300 p-3 rounded-lg text-sm">
+                      <strong>Error:</strong> {error}
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={handleGenerateSpeech} 
+                    isLoading={isLoading} 
+                    disabled={!text.trim() || !apiKey.trim()}
+                  >
+                    <span className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                      Generate & Play
+                    </span>
+                  </Button>
+                </div>
+                
+                <History 
+                  history={history} 
+                  onPlay={handlePlayAudio} 
+                  availableVoices={AVAILABLE_VOICES}
+                />
+              </main>
+              
+              <footer className="text-center mt-8 text-sm text-text-secondary">
+                <p>Powered by Google Gemini. Built with React & Tailwind CSS.</p>
+              </footer>
+            </div>
+          </div>
+        );
+      }
+      // --- END: src/App.tsx ---
+
+      // --- 6. Mount the App ---
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>

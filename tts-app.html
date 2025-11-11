@@ -108,7 +108,16 @@
         
         <footer class="text-center mt-8 text-sm text-text-secondary">
           <p>Powered by Google Gemini. Built with Vanilla JS & Tailwind CSS.</p>
-          <button id="changeApiKeyButton" class="text-brand-primary hover:underline mt-2">Change API Key</button>
+          <div class="flex items-center justify-center gap-4 mt-2">
+            <button id="changeApiKeyButton" class="text-brand-primary hover:underline">
+              Change API Key
+            </button>
+
+            <!-- New Reset API Key button -->
+            <button id="resetApiKeyButton" class="text-red-400 hover:underline" aria-label="Reset API Key">
+              Reset API Key
+            </button>
+          </div>
         </footer>
       </div>
     </div>
@@ -230,6 +239,7 @@
             const apiKeyInput = document.getElementById('apiKeyInput');
             const saveApiKeyButton = document.getElementById('saveApiKeyButton');
             const changeApiKeyButton = document.getElementById('changeApiKeyButton');
+            const resetApiKeyButton = document.getElementById('resetApiKeyButton'); // NEW
             const textInput = document.getElementById('textInput');
             const voiceSelect = document.getElementById('voiceSelect');
             const generateButton = document.getElementById('generateButton');
@@ -334,7 +344,7 @@
                 const wavBlob = createWavBlob(audioData, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS);
 
                 if (currentAudioUrl) {
-                    URL.revokeObjectURL(currentAudioUrl);
+                    try { URL.revokeObjectURL(currentAudioUrl); } catch(e){/* ignore */ }
                 }
                 
                 currentAudioUrl = URL.createObjectURL(wavBlob);
@@ -431,8 +441,35 @@
             };
 
             const handleChangeApiKey = () => {
+                // Keep the app visible but show the API key input flow
                 localStorage.removeItem('gemini-api-key');
                 apiKey = '';
+                checkApiKey();
+            };
+
+            const handleResetApiKey = () => {
+                // Full reset: remove stored key and clear local session state
+                const confirmed = confirm("This will remove your saved API key and clear session history. Continue?");
+                if (!confirmed) return;
+
+                // Remove key
+                localStorage.removeItem('gemini-api-key');
+                apiKey = '';
+
+                // Clear history and UI
+                history = [];
+                renderHistory();
+                setError(null);
+                setWarning(null);
+
+                // Revoke audio URL if any
+                if (currentAudioUrl) {
+                    try { URL.revokeObjectURL(currentAudioUrl); } catch (e) { /* ignore */ }
+                    currentAudioUrl = '';
+                }
+                renderAudioPlayer('', '');
+
+                // Show API key section
                 checkApiKey();
             };
             
@@ -444,10 +481,13 @@
                 // Set listeners
                 saveApiKeyButton.addEventListener('click', handleSaveApiKey);
                 changeApiKeyButton.addEventListener('click', handleChangeApiKey);
+                resetApiKeyButton.addEventListener('click', handleResetApiKey); // NEW
                 generateButton.addEventListener('click', handleGenerateSpeech);
                 historyContainer.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('history-play-button')) {
-                        const id = e.target.dataset.id;
+                    // support clicks on child SVGs/icons
+                    const btn = e.target.closest('.history-play-button');
+                    if (btn) {
+                        const id = btn.dataset.id;
                         const item = history.find(h => h.id === id);
                         if (item) playAudio(item);
                     }

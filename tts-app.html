@@ -3,21 +3,33 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gemini TTS</title>
+    <title>Gemini TTS Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            colors: {
-              'brand-primary': '#4f46e5',
-              'brand-secondary': '#7c3aed',
-              'base-100': '#0f172a',
-              'base-200': '#1e293b',
-              'base-300': '#334155',
-              'text-primary': '#f8fafc',
-              'text-secondary': '#94a3b8',
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
             },
+            colors: {
+              brand: {
+                50: '#eef2ff',
+                100: '#e0e7ff',
+                200: '#c7d2fe',
+                300: '#a5b4fc',
+                400: '#818cf8',
+                500: '#6366f1',
+                600: '#4f46e5',
+                700: '#4338ca',
+                800: '#3730a3',
+                900: '#312e81',
+              }
+            },
+            animation: {
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
           },
         },
       }
@@ -26,121 +38,216 @@
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/"
   }
 }
 </script>
 </head>
-<body class="bg-base-100">
-    <div id="root" class="min-h-screen bg-base-100 text-text-primary flex flex-col items-center justify-center p-4">
-
-      <!-- API Key Section -->
-      <div id="apiKeySection" class="w-full max-w-md mx-auto bg-base-200 p-8 rounded-2xl shadow-2xl">
-        <h2 class="text-2xl font-bold text-center mb-4 text-text-primary">Enter API Key</h2>
-        <p class="text-text-secondary text-center mb-6">Please provide your Google Gemini API key to continue.</p>
-        <div class="space-y-4">
-            <input 
-                type="password" 
-                id="apiKeyInput"
-                placeholder="Your Gemini API Key"
-                class="w-full p-3 bg-base-300 border border-base-300 rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all duration-200"
-            />
-            <button id="saveApiKeyButton" class="flex items-center justify-center w-full px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-100 focus:ring-brand-secondary transition-colors duration-200 ease-in-out">
-                Save and Continue
-            </button>
-        </div>
-        <p class="text-xs text-text-secondary mt-2">Your key is stored only in your browser. Get one from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="underline text-brand-primary">AI Studio</a>.</p>
-      </div>
-
-      <!-- Main App Section -->
-      <div id="appSection" class="w-full max-w-2xl mx-auto" style="display: none;">
-        <header class="text-center mb-8">
-            <div class="flex justify-center items-center gap-4 mb-4">
-                <svg class="w-12 h-12 text-brand-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 10v4"></path><path d="M6 7v10"></path><path d="M10 4v16"></path><path d="M14 7v10"></path><path d="M18 10v4"></path><path d="M22 10v4"></path>
-                </svg>
-                <h1 class="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-brand-primary to-brand-secondary text-transparent bg-clip-text">
-                    Gemini TTS
-                </h1>
-            </div>
-          <p class="text-lg text-text-secondary">
-            Transform your text into lifelike speech with the power of Gemini.
-          </p>
-        </header>
-
-        <main class="bg-base-200 p-6 md:p-8 rounded-2xl shadow-2xl">
-          <div class="space-y-6">
-            <textarea
-              id="textInput"
-              placeholder="Enter text here..."
-              class="w-full h-40 p-4 bg-base-300 border border-base-300 rounded-lg text-text-primary placeholder-text-secondary resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all duration-200"
-            >Hello! I am a friendly AI, ready to bring your words to life.</textarea>
-            
-            <div>
-              <label for="voiceSelect" class="block text-sm font-medium text-text-secondary mb-2">Choose a Voice</label>
-              <div class="relative">
-                <select id="voiceSelect" class="appearance-none block w-full px-4 py-3 bg-base-200 border border-base-300 rounded-md text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-all duration-200 ease-in-out"></select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
-                  <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
-                </div>
-              </div>
-            </div>
-            
-            <div id="warningMessage" class="hidden bg-yellow-900/50 text-yellow-300 p-3 rounded-lg text-sm"></div>
-          
-            <div id="audioPlayerContainer"></div>
-            
-            <div id="errorMessage" class="hidden bg-red-900/50 text-red-300 p-3 rounded-lg text-sm"></div>
-
-            <button id="generateButton" class="flex items-center justify-center w-full px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-100 focus:ring-brand-secondary transition-colors duration-200 ease-in-out disabled:bg-base-300 disabled:cursor-not-allowed">
-              <span class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                </svg>
-                Generate & Play
-              </span>
-            </button>
-          </div>
-          
-          <div id="historyContainer"></div>
-        </main>
+<body class="bg-slate-950 text-slate-50 antialiased font-sans selection:bg-brand-500/30">
+    <div id="root" class="min-h-screen flex flex-col">
         
-        <footer class="text-center mt-8 text-sm text-text-secondary">
-          <p>Powered by Google Gemini. Built with Vanilla JS & Tailwind CSS.</p>
-          <div class="flex items-center justify-center gap-4 mt-2">
-            <button id="changeApiKeyButton" class="text-brand-primary hover:underline">
-              Change API Key
-            </button>
+        <!-- API Key View -->
+        <div id="apiKeyView" class="hidden flex-col items-center justify-center min-h-screen p-4 bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
+            <div class="w-full max-w-md">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
+                    <div class="flex justify-center mb-6">
+                        <div class="p-3 bg-brand-500/10 rounded-xl">
+                            <svg class="w-10 h-10 text-brand-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h5.8a5 5 0 0 1 4.4 2.7l1.1 2A2 2 0 0 0 15 24h7a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-3"/><path d="m9 18 6-6-6-6"/></svg>
+                        </div>
+                    </div>
+                    
+                    <h2 class="text-2xl font-bold text-center mb-2 text-white">Enter API Key</h2>
+                    <p class="text-slate-400 text-center mb-8 text-sm">
+                        To use Gemini TTS, please provide your Google GenAI API key.
+                    </p>
+            
+                    <form id="apiKeyForm" class="space-y-4">
+                        <div class="relative group">
+                            <input
+                                type="password"
+                                id="apiKeyInput"
+                                placeholder="AIzaSy..."
+                                class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-4 py-3 pl-4 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-600"
+                                required
+                            />
+                        </div>
+            
+                        <button
+                            type="submit"
+                            class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 group"
+                        >
+                            <span>Continue</span>
+                            <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </button>
+                    </form>
+            
+                    <div class="mt-6 flex items-start gap-3 p-3 bg-slate-950/50 rounded-lg border border-slate-800/50">
+                        <svg class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Your key is stored locally in your browser and sent directly to Google's servers. It is never stored on any intermediary server.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <!-- New Reset API Key button -->
-            <button id="resetApiKeyButton" class="text-red-400 hover:underline" aria-label="Reset API Key">
-              Reset API Key
-            </button>
-          </div>
-        </footer>
-      </div>
+        <!-- Main App View -->
+        <div id="mainView" class="hidden min-h-screen bg-slate-950">
+            <header class="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+                <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="p-2 bg-brand-500/10 rounded-lg">
+                        <svg class="w-6 h-6 text-brand-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
+                    </div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                      Gemini TTS
+                    </h1>
+                  </div>
+                  
+                  <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                    <button
+                      id="tabGenerate"
+                      class="px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-brand-600 text-white shadow-lg shadow-brand-500/20"
+                    >
+                      Generate
+                    </button>
+                    <button
+                      id="tabHistory"
+                      class="px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800"
+                    >
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/><path d="M3 3v9h9"/><path d="M12 7v5l4 2"/></svg>
+                      History
+                      <span id="historyCountBadge" class="hidden bg-slate-800 text-slate-300 text-xs px-1.5 py-0.5 rounded-full border border-slate-700">0</span>
+                    </button>
+                  </div>
+        
+                  <button
+                    id="btnResetKey"
+                    class="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                    title="Reset API Key"
+                  >
+                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/><path d="M6.29 18.25c.31-.1.66-.06.95.12"/></svg>
+                  </button>
+                </div>
+            </header>
+        
+            <main class="max-w-4xl mx-auto p-4 md:p-8">
+                <!-- Generate Tab Content -->
+                <div id="contentGenerate">
+                    <div class="space-y-6">
+                        <div class="relative">
+                            <textarea
+                                id="inputText"
+                                placeholder="Enter text to transform into speech..."
+                                class="w-full h-48 bg-slate-900 border border-slate-800 rounded-xl p-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 resize-none transition-all text-lg leading-relaxed"
+                            ></textarea>
+                            <div class="absolute bottom-4 right-4 text-xs text-slate-500 pointer-events-none">
+                                <span id="charCount">0</span> / 12000
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Select Voice</label>
+                                <div class="relative">
+                                    <select
+                                        id="selectVoice"
+                                        class="w-full appearance-none bg-slate-900 border border-slate-800 text-slate-200 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all cursor-pointer hover:bg-slate-800/50"
+                                    >
+                                        <!-- Options populated by JS -->
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Placeholder for other settings if needed -->
+                        </div>
+
+                        <!-- Status/Progress -->
+                        <div id="statusArea" class="hidden">
+                            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                <div id="progressBar" class="bg-brand-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <p id="statusText" class="text-center text-sm text-slate-400 mt-2">Processing...</p>
+                        </div>
+                        
+                        <!-- Error Message -->
+                        <div id="errorArea" class="hidden p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-200 text-sm"></div>
+
+                        <button
+                            id="btnGenerate"
+                            class="w-full bg-brand-600 hover:bg-brand-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg shadow-brand-500/20 hover:shadow-brand-500/40 hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                            <span id="btnIcon">
+                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
+                            </span>
+                            <span id="btnText">Generate Speech</span>
+                        </button>
+                    </div>
+
+                    <!-- Current Player -->
+                    <div id="currentPlayer" class="hidden mt-8 p-6 bg-slate-900/50 border border-slate-800 rounded-xl backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4">
+                         <h3 class="text-sm font-medium text-slate-400 mb-3">Now Playing</h3>
+                         <audio id="mainAudioEl" controls class="w-full mb-4" style="height: 40px;"></audio>
+                         <p id="currentText" class="text-slate-300 text-sm leading-relaxed max-h-32 overflow-y-auto pr-2 custom-scrollbar"></p>
+                    </div>
+                </div>
+
+                <!-- History Tab Content -->
+                <div id="contentHistory" class="hidden">
+                    <div id="historyList" class="space-y-4">
+                        <!-- History Items -->
+                    </div>
+                    <div id="emptyHistory" class="text-center py-20 text-slate-500 hidden">
+                        <svg class="w-12 h-12 mx-auto mb-4 opacity-20" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/><path d="M3 3v9h9"/><path d="M12 7v5l4 2"/></svg>
+                        <p>No generation history yet</p>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
 
     <script type="module">
-        import { GoogleGenAI, Modality } from "@google/genai";
+        import { GoogleGenAI } from "@google/genai";
 
-        // --- Start of Constants ---
-        const AVAILABLE_VOICES = [
-            { value: 'Kore', label: 'Kore (Female)' },
-            { value: 'Puck', label: 'Puck (Male)' },
-            { value: 'Charon', label: 'Charon (Male)' },
-            { value: 'Fenrir', label: 'Fenrir (Male)' },
-            { value: 'Zephyr', label: 'Zephyr (Female)' },
-        ];
-        const AUDIO_SAMPLE_RATE = 24000;
-        const AUDIO_CHANNELS = 1;
-        const MAX_TEXT_LENGTH = 12000;
-        // --- End of Constants ---
+        // --- Constants & Config ---
+        const CONSTANTS = {
+            AUDIO_SAMPLE_RATE: 24000,
+            CHUNK_SIZE_LIMIT: 2000, // Safe chunk size
+            MAX_TEXT_LENGTH: 12000,
+            VOICES: [
+                { value: 'Kore', label: 'Kore (Female)', description: 'Warm, balanced' },
+                { value: 'Puck', label: 'Puck (Male)', description: 'Deep, resonant' },
+                { value: 'Charon', label: 'Charon (Male)', description: 'Authoritative, clear' },
+                { value: 'Fenrir', label: 'Fenrir (Male)', description: 'Energetic, fast' },
+                { value: 'Zephyr', label: 'Zephyr (Female)', description: 'Soft, calm' },
+            ]
+        };
 
-        // --- Start of Audio Utilities ---
-        function decode(base64) {
+        // --- Utils ---
+        function splitTextSmart(text, maxLength) {
+            if (!text) return [];
+            const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g) || [];
+            const chunks = [];
+            let currentChunk = "";
+            for (const sentence of sentences) {
+                const potentialChunk = currentChunk + sentence;
+                if (potentialChunk.length > maxLength) {
+                    if (currentChunk.trim()) chunks.push(currentChunk.trim());
+                    currentChunk = sentence;
+                } else {
+                    currentChunk += sentence;
+                }
+            }
+            if (currentChunk.trim()) chunks.push(currentChunk.trim());
+            return chunks;
+        }
+
+        function decodeBase64(base64) {
             const binaryString = atob(base64);
             const len = binaryString.length;
             const bytes = new Uint8Array(len);
@@ -150,27 +257,37 @@
             return bytes;
         }
 
-        function encode(bytes) {
+        function encodeBase64(bytes) {
             let binary = '';
             const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
+            const CHUNK_SIZE = 0x8000;
+            for (let i = 0; i < len; i += CHUNK_SIZE) {
+                const subarray = bytes.subarray(i, Math.min(i + CHUNK_SIZE, len));
+                binary += String.fromCharCode.apply(null, subarray);
             }
             return btoa(binary);
         }
 
-        function createWavBlob(pcmData, sampleRate, numChannels) {
+        function concatPCM(base64Chunks) {
+            const decodedChunks = base64Chunks.map(decodeBase64);
+            const totalLength = decodedChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+            const result = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const chunk of decodedChunks) {
+                result.set(chunk, offset);
+                offset += chunk.length;
+            }
+            return result;
+        }
+
+        function createWavBlob(pcmData, sampleRate = 24000, numChannels = 1) {
             const dataInt16 = new Int16Array(pcmData.buffer);
             const dataSize = dataInt16.length * 2;
             const buffer = new ArrayBuffer(44 + dataSize);
             const view = new DataView(buffer);
-
             function writeString(view, offset, string) {
-                for (let i = 0; i < string.length; i++) {
-                    view.setUint8(offset + i, string.charCodeAt(i));
-                }
+                for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
             }
-
             writeString(view, 0, 'RIFF');
             view.setUint32(4, 36 + dataSize, true);
             writeString(view, 8, 'WAVE');
@@ -184,346 +301,311 @@
             view.setUint16(34, 16, true);
             writeString(view, 36, 'data');
             view.setUint32(40, dataSize, true);
-
-            for (let i = 0; i < dataInt16.length; i++) {
-                view.setInt16(44 + i * 2, dataInt16[i], true);
-            }
-
+            for (let i = 0; i < dataInt16.length; i++) view.setInt16(44 + i * 2, dataInt16[i], true);
             return new Blob([view], { type: 'audio/wav' });
         }
 
-        function concatPCM(base64Chunks) {
-          // First decode all chunks into Uint8Array
-          const decoded = base64Chunks.map(decode);
-
-          // Calculate total size
-          let total = 0;
-          for (const d of decoded) total += d.length;
-
-          // Single allocation only
-          const output = new Uint8Array(total);
-
-          // Copy into the buffer
-          let offset = 0;
-          for (const chunk of decoded) {
-              output.set(chunk, offset);
-              offset += chunk.length;
-          }
-
-          return output;
-        }
-
-        // --- End of Audio Utilities ---
-
-        // --- Start of Text Utilities ---
-        function splitTextSmart(text, maxLength = 12000) {
-          const sentences = text.match(/[^.!?]+[.!?]+|\S+/g) || [];
-          const chunks = [];
-          let current = "";
-
-          for (const sentence of sentences) {
-              if ((current + sentence).length > maxLength) {
-                  chunks.push(current.trim());
-                  current = sentence + " ";
-              } else {
-                  current += sentence + " ";
-              }
-          }
-
-          if (current.trim()) chunks.push(current.trim());
-          return chunks;
-        }
-
-        // --- End of Text Utilities ---
-
-        async function generateChunk(ai, chunk, voice, retry = 3) {
-          try {
-              const response = await ai.models.generateContent({
-                  model: "gemini-2.5-flash-preview-tts",
-                  contents: [{ parts: [{ text: chunk }] }],
-                  config: {
-                      responseModalities: [Modality.AUDIO],
-                      speechConfig: {
-                          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-                      },
-                  },
-              });
-
-              const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-              if (!base64Audio) throw new Error("API returned no audio");
-              return base64Audio;
-
-          } catch (err) {
-              if (retry > 0) {
-                  await new Promise(r => setTimeout(r, 500 * (4 - retry)));
-                  return await generateChunk(ai, chunk, voice, retry - 1);
-              }
-              throw err;
-          }
-      }
-
-
+        // --- App Logic ---
         document.addEventListener('DOMContentLoaded', () => {
-            // --- State ---
-            let history = [];
-            let currentAudioUrl = '';
-            let apiKey = '';
+            // State
+            let apiKey = localStorage.getItem('gemini-api-key') || '';
+            let history = []; 
+            let view = 'generate'; // generate | history
+            let currentAudioUrl = null;
 
-            // --- DOM Elements ---
-            const apiKeySection = document.getElementById('apiKeySection');
-            const appSection = document.getElementById('appSection');
+            // Elements
+            const apiKeyView = document.getElementById('apiKeyView');
+            const mainView = document.getElementById('mainView');
+            const apiKeyForm = document.getElementById('apiKeyForm');
             const apiKeyInput = document.getElementById('apiKeyInput');
-            const saveApiKeyButton = document.getElementById('saveApiKeyButton');
-            const changeApiKeyButton = document.getElementById('changeApiKeyButton');
-            const resetApiKeyButton = document.getElementById('resetApiKeyButton'); // NEW
-            const textInput = document.getElementById('textInput');
-            const voiceSelect = document.getElementById('voiceSelect');
-            const generateButton = document.getElementById('generateButton');
-            const warningMessage = document.getElementById('warningMessage');
-            const errorMessage = document.getElementById('errorMessage');
-            const audioPlayerContainer = document.getElementById('audioPlayerContainer');
-            const historyContainer = document.getElementById('historyContainer');
+            const btnResetKey = document.getElementById('btnResetKey');
             
-            // --- UI Update Functions ---
-            const setLoading = (isLoading) => {
-                generateButton.disabled = isLoading;
-                textInput.disabled = isLoading;
-                voiceSelect.disabled = isLoading;
-                if (isLoading) {
-                    generateButton.innerHTML = `
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Generating...`;
-                } else {
-                    generateButton.innerHTML = `
-                        <span class="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                            </svg>
-                            Generate & Play
-                        </span>`;
-                }
-            };
+            const tabGenerate = document.getElementById('tabGenerate');
+            const tabHistory = document.getElementById('tabHistory');
+            const contentGenerate = document.getElementById('contentGenerate');
+            const contentHistory = document.getElementById('contentHistory');
+            const historyCountBadge = document.getElementById('historyCountBadge');
             
-            const setError = (message) => {
-                if (message) {
-                    errorMessage.innerHTML = `<strong>Error:</strong> ${message}`;
-                    errorMessage.classList.remove('hidden');
+            const selectVoice = document.getElementById('selectVoice');
+            const inputText = document.getElementById('inputText');
+            const charCount = document.getElementById('charCount');
+            const btnGenerate = document.getElementById('btnGenerate');
+            const statusArea = document.getElementById('statusArea');
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('statusText');
+            const errorArea = document.getElementById('errorArea');
+            const currentPlayer = document.getElementById('currentPlayer');
+            const mainAudioEl = document.getElementById('mainAudioEl');
+            const currentText = document.getElementById('currentText');
+            const historyList = document.getElementById('historyList');
+            const emptyHistory = document.getElementById('emptyHistory');
+
+            // Init Voices
+            CONSTANTS.VOICES.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.value;
+                opt.textContent = `${v.label} - ${v.description}`;
+                selectVoice.appendChild(opt);
+            });
+
+            // --- UI Functions ---
+
+            const updateView = () => {
+                if (!apiKey) {
+                    apiKeyView.classList.remove('hidden');
+                    apiKeyView.classList.add('flex');
+                    mainView.classList.add('hidden');
                 } else {
-                    errorMessage.classList.add('hidden');
+                    apiKeyView.classList.add('hidden');
+                    apiKeyView.classList.remove('flex');
+                    mainView.classList.remove('hidden');
                 }
             };
 
-            const setWarning = (message) => {
-                if (message) {
-                    warningMessage.innerHTML = `<strong>Notice:</strong> ${message}`;
-                    warningMessage.classList.remove('hidden');
+            const switchTab = (tab) => {
+                view = tab;
+                if (tab === 'generate') {
+                    tabGenerate.classList.add('bg-brand-600', 'text-white', 'shadow-lg', 'shadow-brand-500/20');
+                    tabGenerate.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                    tabHistory.classList.remove('bg-brand-600', 'text-white', 'shadow-lg', 'shadow-brand-500/20');
+                    tabHistory.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                    contentGenerate.classList.remove('hidden');
+                    contentHistory.classList.add('hidden');
                 } else {
-                    warningMessage.classList.add('hidden');
+                    tabHistory.classList.add('bg-brand-600', 'text-white', 'shadow-lg', 'shadow-brand-500/20');
+                    tabHistory.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                    tabGenerate.classList.remove('bg-brand-600', 'text-white', 'shadow-lg', 'shadow-brand-500/20');
+                    tabGenerate.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                    contentHistory.classList.remove('hidden');
+                    contentGenerate.classList.add('hidden');
+                    renderHistory();
                 }
             };
-            
-            const renderAudioPlayer = (audioUrl, currentText) => {
-                if (!audioUrl) {
-                    audioPlayerContainer.innerHTML = '';
-                    return;
+
+            const setGenerating = (isGenerating, progress = 0, message = "") => {
+                btnGenerate.disabled = isGenerating;
+                inputText.disabled = isGenerating;
+                selectVoice.disabled = isGenerating;
+
+                if (isGenerating) {
+                    statusArea.classList.remove('hidden');
+                    progressBar.style.width = `${progress}%`;
+                    statusText.textContent = message;
+                    btnGenerate.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...`;
+                } else {
+                    statusArea.classList.add('hidden');
+                    btnGenerate.innerHTML = `<span id="btnIcon"><svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg></span><span id="btnText">Generate Speech</span>`;
                 }
-                audioPlayerContainer.innerHTML = `
-                    <div class="space-y-4 my-6">
-                      <div>
-                        <p class="text-sm text-text-secondary mb-2">Now Playing:</p>
-                        <p class="text-text-primary bg-base-300 p-3 rounded-md max-h-24 overflow-y-auto">${currentText}</p>
-                      </div>
-                       <div class="flex items-center gap-4">
-                        <audio controls autoPlay src="${audioUrl}" class="w-full" style="color-scheme: dark;"></audio>
-                        <a href="${audioUrl}" download="gemini-tts-audio.wav" aria-label="Download audio" class="flex-shrink-0 p-3 rounded-md bg-base-300 hover:bg-brand-primary text-text-secondary hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-200 focus:ring-brand-primary transition-colors">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                          </svg>
-                        </a>
-                      </div>
-                    </div>`;
             };
-            
+
+            const showError = (msg) => {
+                if (msg) {
+                    errorArea.textContent = msg;
+                    errorArea.classList.remove('hidden');
+                } else {
+                    errorArea.classList.add('hidden');
+                }
+            };
+
             const renderHistory = () => {
-                if(history.length === 0) {
-                    historyContainer.innerHTML = '';
+                historyList.innerHTML = '';
+                if (history.length === 0) {
+                    emptyHistory.classList.remove('hidden');
+                    historyCountBadge.classList.add('hidden');
                     return;
-                }
-                const voiceMap = new Map(AVAILABLE_VOICES.map(v => [v.value, v.label]));
-                historyContainer.innerHTML = `
-                    <div class="mt-8 border-t border-base-300 pt-6">
-                        <h2 class="text-xl font-semibold text-text-primary mb-4">History</h2>
-                        <div class="space-y-3 max-h-60 overflow-y-auto pr-2">
-                        ${history.map(item => `
-                            <div class="flex items-center justify-between p-4 bg-base-300 rounded-lg">
-                                <div class="flex-1 mr-4 overflow-hidden">
-                                    <p class="text-text-primary truncate">${item.text}</p>
-                                    <p class="text-xs text-text-secondary mt-1">${voiceMap.get(item.voice) || item.voice}</p>
-                                </div>
-                                <button data-id="${item.id}" aria-label="Play audio for: ${item.text}" class="history-play-button flex-shrink-0 p-2 rounded-full bg-brand-primary hover:bg-brand-secondary text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-300 focus:ring-brand-secondary transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" style="pointer-events: none;">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
-                        `).join('')}
-                        </div>
-                    </div>`;
-            };
-
-            // --- Core Logic ---
-            const playAudio = (item) => {
-                const audioData = decode(item.base64Audio);
-                const wavBlob = createWavBlob(audioData, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS);
-
-                if (currentAudioUrl) {
-                    try { URL.revokeObjectURL(currentAudioUrl); } catch(e){/* ignore */ }
                 }
                 
-                currentAudioUrl = URL.createObjectURL(wavBlob);
-                renderAudioPlayer(currentAudioUrl, item.text);
+                emptyHistory.classList.add('hidden');
+                historyCountBadge.textContent = history.length;
+                historyCountBadge.classList.remove('hidden');
+
+                history.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4 group hover:border-brand-500/30 transition-all';
+                    div.innerHTML = `
+                        <div class="min-w-0 flex-1">
+                            <p class="text-slate-300 text-sm font-medium truncate mb-1">${item.text}</p>
+                            <div class="flex items-center gap-3 text-xs text-slate-500">
+                                <span>${item.voice}</span>
+                                <span>•</span>
+                                <span>${new Date(item.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <button class="btn-play p-2 rounded-lg bg-brand-500/10 text-brand-400 hover:bg-brand-500 hover:text-white transition-colors" title="Play">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                             </button>
+                             <button class="btn-download p-2 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors" title="Download">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                             </button>
+                        </div>
+                    `;
+                    
+                    // Attach event listeners
+                    const btnPlay = div.querySelector('.btn-play');
+                    btnPlay.onclick = () => playAudioItem(item);
+                    
+                    const btnDownload = div.querySelector('.btn-download');
+                    btnDownload.onclick = () => downloadAudioItem(item);
+
+                    historyList.appendChild(div);
+                });
             };
 
-            const handleGenerateSpeech = async () => {
-                const text = textInput.value.trim();
-                const selectedVoice = voiceSelect.value;
-                if (!text) {
-                  setError('Please enter some text to generate speech.');
-                  return;
-                }
-                setLoading(true);
-                setError(null);
-                setWarning(null);
+            const playAudioItem = (item) => {
+                if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+                const pcm = decodeBase64(item.base64Audio);
+                const blob = createWavBlob(pcm);
+                currentAudioUrl = URL.createObjectURL(blob);
+                
+                mainAudioEl.src = currentAudioUrl;
+                currentText.textContent = item.text;
+                currentPlayer.classList.remove('hidden');
+                
+                // Switch to generate tab to see player if not there
+                if (view !== 'generate') switchTab('generate');
+                
+                mainAudioEl.play().catch(console.error);
+            };
 
-                if (text.length > MAX_TEXT_LENGTH) {
-                    setWarning(`Text is long and will be split into parts. This may take a moment.`);
+            const downloadAudioItem = (item) => {
+                const pcm = decodeBase64(item.base64Audio);
+                const blob = createWavBlob(pcm);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `gemini-tts-${item.id}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            // --- API Logic ---
+
+            const generateChunkWithRetry = async (ai, text, voice, retries = 3) => {
+                try {
+                     const apiCall = ai.models.generateContent({
+                        model: "gemini-2.5-flash-preview-tts",
+                        contents: [{ parts: [{ text }] }],
+                        config: {
+                            responseModalities: ["AUDIO"],
+                            speechConfig: {
+                                voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+                            },
+                        },
+                    });
+
+                    // 15 second timeout to prevent infinite hanging
+                    const timeout = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error("Request timed out")), 15000)
+                    );
+
+                    const response = await Promise.race([apiCall, timeout]);
+
+                    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                    if (!base64Audio) throw new Error("API returned no audio data");
+                    return base64Audio;
+                } catch (error) {
+                    if (retries > 0) {
+                        console.warn("Chunk failed, retrying...", error);
+                        // Backoff
+                        await new Promise(r => setTimeout(r, 1000));
+                        return generateChunkWithRetry(ai, text, voice, retries - 1);
+                    }
+                    throw error;
                 }
+            };
+
+            const handleGenerate = async () => {
+                const text = inputText.value.trim();
+                const voice = selectVoice.value;
+                
+                if (!text) {
+                    showError("Please enter some text.");
+                    return;
+                }
+
+                if (text.length > CONSTANTS.MAX_TEXT_LENGTH) {
+                    showError(`Text is too long. Limit is ${CONSTANTS.MAX_TEXT_LENGTH} characters.`);
+                    return;
+                }
+
+                showError(null);
+                setGenerating(true, 0, "Initializing...");
 
                 try {
-                  const ai = new GoogleGenAI({ apiKey });
+                    const ai = new GoogleGenAI({ apiKey });
+                    const chunks = splitTextSmart(text, CONSTANTS.CHUNK_SIZE_LIMIT);
+                    
+                    const base64Chunks = [];
+                    
+                    for (let i = 0; i < chunks.length; i++) {
+                        setGenerating(true, Math.round((i / chunks.length) * 100), `Generating part ${i + 1} of ${chunks.length}...`);
+                        
+                        // Artificial delay to prevent rate limiting and ensure sequential processing breathing room
+                        if (i > 0) {
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
 
-                  // Split using your updated smart splitter
-                  const chunks = splitTextSmart(text, MAX_TEXT_LENGTH);
+                        const chunkAudio = await generateChunkWithRetry(ai, chunks[i], voice);
+                        base64Chunks.push(chunkAudio);
+                    }
 
-                  if (chunks.length > 1) {
-                      setWarning(`Your text is very long. It will be processed in ${chunks.length} parts…`);
-                  }
+                    setGenerating(true, 100, "Finalizing audio...");
 
-                  // Sequential + retry-safe TTS generation
-                  const base64AudioChunks = [];
-                  for (let i = 0; i < chunks.length; i++) {
-                      setWarning(`Processing chunk ${i + 1} of ${chunks.length}…`);
-                      const audio = await generateChunk(ai, chunks[i], selectedVoice);
-                      base64AudioChunks.push(audio);
-                  }
-                  setWarning(null);
+                    // Concat
+                    const pcm = concatPCM(base64Chunks);
+                    const finalBase64 = encodeBase64(pcm);
 
-                  // ⬇⬇⬇ NEW: low-memory concatenation
-                  const pcm = concatPCM(base64AudioChunks);
-                  const base64Audio = encode(pcm);
-                  // ⬆⬆⬆ NEW: replaces your old decodedChunks / reduce / Uint8Array block
+                    const newItem = {
+                        id: Date.now().toString(),
+                        text,
+                        voice: CONSTANTS.VOICES.find(v => v.value === voice)?.label || voice,
+                        base64Audio: finalBase64,
+                        timestamp: Date.now()
+                    };
 
-                  // Create history item
-                  const newItem = {
-                      id: crypto.randomUUID(),
-                      text,
-                      voice: selectedVoice,
-                      base64Audio,
-                  };
-
-                  history.unshift(newItem);
-                  renderHistory();
-                  playAudio(newItem);
-
-                } catch (err) {
-                  setError(err.message || 'An unexpected error occurred.');
-                  console.error(err);
+                    history.unshift(newItem);
+                    playAudioItem(newItem);
+                    
+                } catch (error) {
+                    console.error(error);
+                    showError(error.message || "An unexpected error occurred during generation.");
                 } finally {
-                  setLoading(false);
+                    setGenerating(false);
                 }
             };
 
-            // --- API Key Management ---
-            const checkApiKey = () => {
-                apiKey = localStorage.getItem('gemini-api-key');
-                if (apiKey) {
-                    apiKeySection.style.display = 'none';
-                    appSection.style.display = 'block';
-                } else {
-                    apiKeySection.style.display = 'block';
-                    appSection.style.display = 'none';
-                }
-            };
-            
-            const handleSaveApiKey = () => {
+            // --- Event Listeners ---
+            apiKeyForm.addEventListener('submit', (e) => {
+                e.preventDefault();
                 const key = apiKeyInput.value.trim();
                 if (key) {
+                    apiKey = key;
                     localStorage.setItem('gemini-api-key', key);
-                    checkApiKey();
+                    updateView();
                 }
-            };
+            });
 
-            const handleChangeApiKey = () => {
-                // Keep the app visible but show the API key input flow
-                localStorage.removeItem('gemini-api-key');
-                apiKey = '';
-                checkApiKey();
-            };
-
-            const handleResetApiKey = () => {
-                // Full reset: remove stored key and clear local session state
-                const confirmed = confirm("This will remove your saved API key and clear session history. Continue?");
-                if (!confirmed) return;
-
-                // Remove key
-                localStorage.removeItem('gemini-api-key');
-                apiKey = '';
-
-                // Clear history and UI
-                history = [];
-                renderHistory();
-                setError(null);
-                setWarning(null);
-
-                // Revoke audio URL if any
-                if (currentAudioUrl) {
-                    try { URL.revokeObjectURL(currentAudioUrl); } catch (e) { /* ignore */ }
-                    currentAudioUrl = '';
+            btnResetKey.addEventListener('click', () => {
+                if (confirm("Reset API Key? This will clear your stored key.")) {
+                    apiKey = '';
+                    localStorage.removeItem('gemini-api-key');
+                    updateView();
                 }
-                renderAudioPlayer('', '');
+            });
 
-                // Show API key section
-                checkApiKey();
-            };
-            
-            // --- Initialization and Event Listeners ---
-            const init = () => {
-                // Populate voices
-                voiceSelect.innerHTML = AVAILABLE_VOICES.map(voice => `<option value="${voice.value}">${voice.label}</option>`).join('');
-                
-                // Set listeners
-                saveApiKeyButton.addEventListener('click', handleSaveApiKey);
-                changeApiKeyButton.addEventListener('click', handleChangeApiKey);
-                resetApiKeyButton.addEventListener('click', handleResetApiKey); // NEW
-                generateButton.addEventListener('click', handleGenerateSpeech);
-                historyContainer.addEventListener('click', (e) => {
-                    // support clicks on child SVGs/icons
-                    const btn = e.target.closest('.history-play-button');
-                    if (btn) {
-                        const id = btn.dataset.id;
-                        const item = history.find(h => h.id === id);
-                        if (item) playAudio(item);
-                    }
-                });
+            inputText.addEventListener('input', () => {
+                charCount.textContent = inputText.value.length;
+            });
 
-                // Check for API key
-                checkApiKey();
-            };
-            
-            init();
+            tabGenerate.addEventListener('click', () => switchTab('generate'));
+            tabHistory.addEventListener('click', () => switchTab('history'));
+            btnGenerate.addEventListener('click', handleGenerate);
+
+            // Startup
+            updateView();
         });
     </script>
 </body>

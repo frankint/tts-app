@@ -136,7 +136,7 @@
         ];
         const AUDIO_SAMPLE_RATE = 24000;
         const AUDIO_CHANNELS = 1;
-        const MAX_TEXT_LENGTH = 1000;
+        const MAX_TEXT_LENGTH = 12000;
         // --- End of Constants ---
 
         // --- Start of Audio Utilities ---
@@ -191,42 +191,77 @@
 
             return new Blob([view], { type: 'audio/wav' });
         }
+
+        function concatPCM(base64Chunks) {
+          // First decode all chunks into Uint8Array
+          const decoded = base64Chunks.map(decode);
+
+          // Calculate total size
+          let total = 0;
+          for (const d of decoded) total += d.length;
+
+          // Single allocation only
+          const output = new Uint8Array(total);
+
+          // Copy into the buffer
+          let offset = 0;
+          for (const chunk of decoded) {
+              output.set(chunk, offset);
+              offset += chunk.length;
+          }
+
+          return output;
+        }
+
         // --- End of Audio Utilities ---
 
         // --- Start of Text Utilities ---
-        function splitText(text, maxLength) {
-            if (text.length <= maxLength) return [text];
-            
-            const chunks = [];
-            let currentPos = 0;
-            
-            while (currentPos < text.length) {
-                let endPos = Math.min(currentPos + maxLength, text.length);
-                
-                if (endPos < text.length) {
-                    const chunk = text.substring(currentPos, endPos);
-                    let splitPos = -1;
+        function splitTextSmart(text, maxLength = 12000) {
+          const sentences = text.match(/[^.!?]+[.!?]+|\S+/g) || [];
+          const chunks = [];
+          let current = "";
 
-                    for (const sep of ['.', '!', '?']) {
-                        splitPos = Math.max(splitPos, chunk.lastIndexOf(sep));
-                    }
-                    
-                    if (splitPos === -1) {
-                        splitPos = chunk.lastIndexOf(' ');
-                    }
-                    
-                    if (splitPos !== -1) {
-                        endPos = currentPos + splitPos + 1;
-                    }
-                }
-                
-                chunks.push(text.substring(currentPos, endPos).trim());
-                currentPos = endPos;
-            }
-            
-            return chunks.filter(Boolean);
+          for (const sentence of sentences) {
+              if ((current + sentence).length > maxLength) {
+                  chunks.push(current.trim());
+                  current = sentence + " ";
+              } else {
+                  current += sentence + " ";
+              }
+          }
+
+          if (current.trim()) chunks.push(current.trim());
+          return chunks;
         }
+
         // --- End of Text Utilities ---
+
+        async function generateChunk(ai, chunk, voice, retry = 3) {
+          try {
+              const response = await ai.models.generateContent({
+                  model: "gemini-2.5-flash-preview-tts",
+                  contents: [{ parts: [{ text: chunk }] }],
+                  config: {
+                      responseModalities: [Modality.AUDIO],
+                      speechConfig: {
+                          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+                      },
+                  },
+              });
+
+              const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+              if (!base64Audio) throw new Error("API returned no audio");
+              return base64Audio;
+
+          } catch (err) {
+              if (retry > 0) {
+                  await new Promise(r => setTimeout(r, 500 * (4 - retry)));
+                  return await generateChunk(ai, chunk, voice, retry - 1);
+              }
+              throw err;
+          }
+      }
+
 
         document.addEventListener('DOMContentLoaded', () => {
             // --- State ---
@@ -369,44 +404,34 @@
 
                 try {
                   const ai = new GoogleGenAI({ apiKey });
-                  const chunks = splitText(text, MAX_TEXT_LENGTH);
-                  
-                  const base64AudioChunks = await Promise.all(
-                    chunks.map(chunk => 
-                        ai.models.generateContent({
-                            model: "gemini-2.5-flash-preview-tts",
-                            contents: [{ parts: [{ text: chunk }] }],
-                            config: {
-                                responseModalities: [Modality.AUDIO],
-                                speechConfig: {
-                                    voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
-                                },
-                            },
-                        }).then(response => {
-                            const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                            if (!base64Audio) throw new Error("API response did not contain audio data.");
-                            return base64Audio;
-                        })
-                    )
-                  );
-                  
-                  const decodedChunks = base64AudioChunks.map(b64 => decode(b64));
-                  const totalLength = decodedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-                  const concatenatedPcm = new Uint8Array(totalLength);
-                  
-                  let offset = 0;
-                  for (const chunk of decodedChunks) {
-                    concatenatedPcm.set(chunk, offset);
-                    offset += chunk.length;
-                  }
-                  
-                  const base64Audio = encode(concatenatedPcm);
 
+                  // Split using your updated smart splitter
+                  const chunks = splitTextSmart(text, MAX_TEXT_LENGTH);
+
+                  if (chunks.length > 1) {
+                      setWarning(`Your text is very long. It will be processed in ${chunks.length} parts…`);
+                  }
+
+                  // Sequential + retry-safe TTS generation
+                  const base64AudioChunks = [];
+                  for (let i = 0; i < chunks.length; i++) {
+                      setWarning(`Processing chunk ${i + 1} of ${chunks.length}…`);
+                      const audio = await generateChunk(ai, chunks[i], selectedVoice);
+                      base64AudioChunks.push(audio);
+                  }
+                  setWarning(null);
+
+                  // ⬇⬇⬇ NEW: low-memory concatenation
+                  const pcm = concatPCM(base64AudioChunks);
+                  const base64Audio = encode(pcm);
+                  // ⬆⬆⬆ NEW: replaces your old decodedChunks / reduce / Uint8Array block
+
+                  // Create history item
                   const newItem = {
-                    id: crypto.randomUUID(),
-                    text,
-                    voice: selectedVoice,
-                    base64Audio,
+                      id: crypto.randomUUID(),
+                      text,
+                      voice: selectedVoice,
+                      base64Audio,
                   };
 
                   history.unshift(newItem);
